@@ -266,7 +266,7 @@ impl<N: Network> CoinbasePuzzle<N> {
                     let send_r = pe_tx0.send(product_evaluations) ;
                     match send_r {
                         Err(e) => {
-                            info!("### send err : {}",e.0)
+                            info!("### send err : {:?}",e )
                         },
                         _=>{}
                     }
