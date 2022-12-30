@@ -221,6 +221,8 @@ impl<N: Network> CoinbasePuzzle<N> {
         nonce: u64,
         minimum_proof_target: u64,
     ) -> Result<Vec<ProverSolution<N>>> {
+        info("### call prove_ex");
+
         // Retrieve the coinbase proving key.
         let pk = match self {
             Self::Prover(coinbase_proving_key) => coinbase_proving_key,
