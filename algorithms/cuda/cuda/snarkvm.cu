@@ -131,7 +131,7 @@ public:
     // Key to cached msm_t mapping
     uint64_t msm_keys[msm_cache_entries];
     // Max number of points to support
-    static const size_t msm_cache_npoints = 65537;
+    static const size_t msm_cache_npoints = 2000000;
     // Current cache entry
     size_t cur_msm_cache_entry;
     struct dev_msm_point_cache_t {
