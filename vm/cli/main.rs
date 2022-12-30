@@ -24,10 +24,7 @@ fn main() -> anyhow::Result<()> {
     // Run the updater.
     println!("{}", Updater::print_cli());
  
-    println!("call init_gpu 1" );
-        snarkvm_cuda::init_gpu();
-            println!("call init_gpu 2" );
-    
+
     // Run the CLI.
     println!("{}", cli.command.start()?);
 
