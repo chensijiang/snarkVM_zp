@@ -44,7 +44,7 @@ impl<N: Network> PartialSolution<N> {
     }
 
     /// Returns the nonce for the solution.
-    pub const fn nonce(&self) -> u64 {
+    pub const fn nonce1(&self) -> u64 {
         self.nonce
     }
 
@@ -58,7 +58,7 @@ impl<N: Network> PartialSolution<N> {
         &self,
         epoch_challenge: &EpochChallenge<N>,
     ) -> Result<DensePolynomial<<N::PairingCurve as PairingEngine>::Fr>> {
-        CoinbasePuzzle::prover_polynomial(epoch_challenge, self.address(), self.nonce())
+        CoinbasePuzzle::prover_polynomial(epoch_challenge, self.address(), self.nonce1())
     }
 
     /// Returns the target of the solution.
