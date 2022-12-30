@@ -34,7 +34,7 @@ impl VariableBase {
             #[cfg(all(feature = "cuda", target_arch = "x86_64"))]
             // TODO SNP: where to set the threshold
             if scalars.len() > 1024 {
-                snarkvm_cuda::init_gpu();
+                // snarkvm_cuda::init_gpu();
                 let result = snarkvm_cuda::msm::<G, G::Projective, <G::ScalarField as PrimeField>::BigInteger>(
                     bases, scalars,
                 );
