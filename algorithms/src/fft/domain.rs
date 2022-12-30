@@ -420,7 +420,7 @@ impl<F: FftField> EvaluationDomain<F> {
         x_s: &mut [T],
         _pre_comp: &IFFTPrecomputation<F>,
     ) {
-        snarkvm_cuda::init_gpu();
+        // snarkvm_cuda::init_gpu();
         snarkvm_cuda::iNTT_batch(self.size(), 1, x_s,
                                  snarkvm_cuda::NTTInputOutputOrder::NN);
     }
