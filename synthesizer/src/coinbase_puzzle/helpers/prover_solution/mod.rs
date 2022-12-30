@@ -75,8 +75,12 @@ impl<N: Network> ProverSolution<N> {
     }
 
     /// Returns the nonce for the solution.
-    pub const fn nonce(&self) -> u64 {
-        self.partial_solution.nonce()
+    //pub const fn nonce(&self) -> u64 {
+    //    self.partial_solution.nonce()
+    //}
+
+    pub const fn nonce1(&self) -> u64 {
+        self.partial_solution.nonce1()
     }
 
     /// Returns the commitment for the solution.
