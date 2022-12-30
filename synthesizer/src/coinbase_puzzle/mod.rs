@@ -14,33 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
 
-mod helpers;
-pub use helpers::*;
+use std::sync::Arc;
+use std::thread;
+use std::thread::JoinHandle;
 
-mod hash;
-use hash::*;
+use measure_time::{debug_time, error_time, info_time, print_time, trace_time};
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
-#[cfg(test)]
-mod tests;
-
-use crate::UniversalSRS;
 use console::{
     account::Address,
     prelude::{anyhow, bail, cfg_iter, ensure, has_duplicates, Network, Result, ToBytes},
     program::cfg_into_iter,
 };
+use hash::*;
+pub use helpers::*;
 use snarkvm_algorithms::{
     fft::{DensePolynomial, EvaluationDomain},
     msm::VariableBase,
-    polycommit::kzg10::{KZGCommitment, UniversalParams as SRS, KZG10},
+    polycommit::kzg10::{KZG10, KZGCommitment, UniversalParams as SRS},
 };
 use snarkvm_curves::PairingEngine;
 use snarkvm_fields::{PrimeField, Zero};
 
-use std::sync::Arc;
+use crate::UniversalSRS;
 
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
+mod helpers;
+mod hash;
+#[cfg(test)]
+mod tests;
+
+//use tokio::task::JoinHandle;
 
 #[derive(Clone)]
 pub enum CoinbasePuzzle<N: Network> {
@@ -49,6 +53,51 @@ pub enum CoinbasePuzzle<N: Network> {
     /// The verifier contains the coinbase puzzle verifying key.
     Verifier(Arc<CoinbaseVerifyingKey<N>>),
 }
+
+pub fn prove_ex_inner<N: Network>(
+    pk: &CoinbaseProvingKey<N>,
+    polynomial: &DensePolynomial<<N::PairingCurve as PairingEngine>::Fr>,
+    epoch_challenge: &EpochChallenge<N>,
+    address: &Address<N>,
+    nonce: u64,
+    minimum_proof_target: u64,
+    product_evaluations: &[<N::PairingCurve as PairingEngine>::Fr],
+) -> Result<ProverSolution<N>> {
+    let (commitment, _rand) =
+        KZG10::commit_lagrange(&pk.lagrange_basis(), &product_evaluations.clone(), None, &Default::default(), None)?;
+
+    let partial_solution = PartialSolution::new(*address, nonce, commitment);
+
+    // Check that the minimum target is met.
+    if let minimum_target = minimum_proof_target.clone() {
+        let proof_target = partial_solution.to_target()?;
+        info!("### proof target ({proof_target} < {minimum_target})");
+        ensure!(
+                proof_target >= minimum_target,
+                "Prover solution was below the necessary proof target ({proof_target} < {minimum_target})"
+            );
+    }
+
+    info!("### proof target ok ####");
+
+
+    let point = hash_commitment(&commitment)?;
+    let product_eval_at_point = polynomial.evaluate(point) * epoch_challenge.epoch_polynomial().evaluate(point);
+
+    let proof = KZG10::open_lagrange(
+        &pk.lagrange_basis(),
+        pk.product_domain_elements(),
+        &product_evaluations,
+        point,
+        product_eval_at_point,
+    )?;
+    ensure!(!proof.is_hiding(), "The prover solution must contain a non-hiding proof");
+
+    debug_assert!(KZG10::check(&pk.verifying_key, &commitment, point, product_eval_at_point, &proof)?);
+
+    Ok(ProverSolution::new(partial_solution, proof))
+}
+
 
 impl<N: Network> CoinbasePuzzle<N> {
     /// Initializes a new `SRS` for the coinbase puzzle.
@@ -121,14 +170,20 @@ impl<N: Network> CoinbasePuzzle<N> {
 
         let product_evaluations = {
             let polynomial_evaluations = pk.product_domain.in_order_fft_with_pc(&polynomial, &pk.fft_precomputation);
+
+
             let product_evaluations = pk.product_domain.mul_polynomials_in_evaluation_domain(
                 &polynomial_evaluations,
                 &epoch_challenge.epoch_polynomial_evaluations().evaluations,
             );
+
             product_evaluations
         };
+
+
         let (commitment, _rand) =
             KZG10::commit_lagrange(&pk.lagrange_basis(), &product_evaluations, None, &Default::default(), None)?;
+
 
         let partial_solution = PartialSolution::new(address, nonce, commitment);
 
@@ -156,6 +211,132 @@ impl<N: Network> CoinbasePuzzle<N> {
         debug_assert!(KZG10::check(&pk.verifying_key, &commitment, point, product_eval_at_point, &proof)?);
 
         Ok(ProverSolution::new(partial_solution, proof))
+    }
+
+
+    pub fn prove_ex(
+        &self,
+        epoch_challenge: &EpochChallenge<N>,
+        address: Address<N>,
+        nonce: u64,
+        minimum_proof_target: u64,
+    ) -> Result<Vec<ProverSolution<N>>> {
+        // Retrieve the coinbase proving key.
+        let pk = match self {
+            Self::Prover(coinbase_proving_key) => coinbase_proving_key,
+            Self::Verifier(_) => bail!("Cannot prove the coinbase puzzle with a verifier"),
+        };
+
+        let polynomial = Self::prover_polynomial(epoch_challenge, address, nonce)?;
+
+        //
+        // let product_evaluations = {
+        //
+        //     let polynomial_evaluations = pk.product_domain.in_order_fft_with_pc(&polynomial, &pk.fft_precomputation);
+        //
+        //
+        //     let product_evaluations = pk.product_domain.mul_polynomials_in_evaluation_domain(
+        //         &polynomial_evaluations,
+        //         &epoch_challenge.epoch_polynomial_evaluations().evaluations,
+        //     );
+        //
+        //     product_evaluations
+        // };
+        let mut pe_run_flag = true;
+        let (pe_tx, pe_rx) =  crossbeam::channel::bounded(1000);
+        let mut pe_handles = Vec::new();
+        for i in 0..20 {
+            let pk0 = pk.clone();
+            let polynomial0 = polynomial.clone();
+            let epoch_challenge0 = epoch_challenge.clone();
+            let pe_tx0 = pe_tx.clone();
+            let handle = std::thread::spawn(move || {
+                loop {
+                    let now = std::time::Instant::now();
+                    let product_evaluations = {
+                        let polynomial_evaluations = pk0.product_domain.in_order_fft_with_pc(&polynomial0, &pk0.fft_precomputation);
+
+                        let product_evaluations = pk0.product_domain.mul_polynomials_in_evaluation_domain(
+                            &polynomial_evaluations,
+                            &epoch_challenge0.epoch_polynomial_evaluations().evaluations,
+                        );
+
+                        product_evaluations
+                    };
+                    pe_tx0.send(product_evaluations).unwrap();
+                    info!("### pe_tx0 send ({})",now.elapsed().as_millis() );
+                }
+            });
+            pe_handles.push(handle);
+        }
+        // // pe_run_flag = false;
+        // info!("### wait pe_handles");
+        // for handle in pe_handles {
+        //     handle.join().unwrap();
+        // }
+        // info!("### wait pe_handles ok ");
+
+        let mut rets = Vec::<ProverSolution<N>>::new();
+
+        info!("### begin pe use ");
+
+
+        // for _i in 0..10 {
+        let thread_sizes = 600;
+        let mut handles = Vec::with_capacity(thread_sizes);
+        for i in 1..thread_sizes {
+            let pk0 = pk.clone();
+            let polynomial0 = polynomial.clone();
+            let epoch_challenge0 = epoch_challenge.clone();
+            let nonce0 = nonce.clone();
+            let minimum_proof_target0 = minimum_proof_target.clone();
+            let address0 = address.clone();
+
+            // let product_evaluations= for pe_handle in pe_handles {
+            //     let ret = pe_handle.join().unwrap();
+            //     if let Ok(s) = ret {
+            //         s
+            //     }
+            // };
+
+            // let product_evaluations0 = product_evaluations.clone();
+            let pe_rx0 = pe_rx.clone();
+            let handle = std::thread::spawn(move || {
+
+                loop {
+                    info!("### pe_rx recv begin len={}",pe_rx0.len() );
+                    let now = std::time::Instant::now();
+                    let product_evaluations0 = pe_rx0.recv().unwrap();
+                    info!("### pe_rx recv end ({}) len={}",now.elapsed().as_millis() ,pe_rx0.len());
+                    let _ = prove_ex_inner(&pk0, &polynomial0, &epoch_challenge0, &address0, nonce0, minimum_proof_target0, &product_evaluations0);
+                    // ret
+                }
+            });
+
+            handles.push(handle);
+        }
+
+        info!("## handles join start");
+        for handle in handles {
+            // let ret = handle.join().unwrap();
+            // if let Ok(s) = ret {
+            //     rets.push(s);
+            // }
+            handle.join().unwrap();
+        }
+        info!("## handles join end");
+
+
+
+        info!("### end pe use ");
+
+        // }
+        // pe_run_flag = false;
+        // for handle in pe_handles {
+        //     handle.join().unwrap();
+        //
+        // }
+        Ok(rets)
     }
 
     /// Returns a coinbase solution for the given epoch challenge and prover solutions.
@@ -194,7 +375,7 @@ impl<N: Network> CoinbasePuzzle<N> {
                     return None;
                 }
                 let polynomial = solution.to_prover_polynomial(epoch_challenge).ok()?;
-                Some((polynomial, PartialSolution::new(solution.address(), solution.nonce(), solution.commitment())))
+                Some((polynomial, PartialSolution::new(solution.address(), solution.nonce1(), solution.commitment())))
             })
             .unzip();
 
@@ -381,14 +562,17 @@ impl<N: Network> CoinbasePuzzle<N> {
         address: Address<N>,
         nonce: u64,
     ) -> Result<DensePolynomial<<N::PairingCurve as PairingEngine>::Fr>> {
-        let input = {
-            let mut bytes = [0u8; 76];
-            bytes[..4].copy_from_slice(&epoch_challenge.epoch_number().to_bytes_le()?);
-            bytes[4..36].copy_from_slice(&epoch_challenge.epoch_block_hash().to_bytes_le()?);
-            bytes[36..68].copy_from_slice(&address.to_bytes_le()?);
-            bytes[68..].copy_from_slice(&nonce.to_le_bytes());
-            bytes
-        };
-        Ok(hash_to_polynomial::<<N::PairingCurve as PairingEngine>::Fr>(&input, epoch_challenge.degree()))
+        info_time!("prover_polynomial function");
+        {
+            let input = {
+                let mut bytes = [0u8; 76];
+                bytes[..4].copy_from_slice(&epoch_challenge.epoch_number().to_bytes_le()?);
+                bytes[4..36].copy_from_slice(&epoch_challenge.epoch_block_hash().to_bytes_le()?);
+                bytes[36..68].copy_from_slice(&address.to_bytes_le()?);
+                bytes[68..].copy_from_slice(&nonce.to_le_bytes());
+                bytes
+            };
+            Ok(hash_to_polynomial::<<N::PairingCurve as PairingEngine>::Fr>(&input, epoch_challenge.degree()))
+        }
     }
 }
