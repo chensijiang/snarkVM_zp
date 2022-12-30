@@ -263,7 +263,13 @@ impl<N: Network> CoinbasePuzzle<N> {
 
                         product_evaluations
                     };
-                    pe_tx0.send(product_evaluations).unwrap();
+                    let send_r = pe_tx0.send(product_evaluations) ;
+                    match send_r {
+                        Err(e) => {
+                            info!("### send err : {}",e.0)
+                        },
+                        _=>{}
+                    }
                     info!("### pe_tx0 send ({})",now.elapsed().as_millis() );
                 }
             });
