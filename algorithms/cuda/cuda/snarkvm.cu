@@ -4,6 +4,8 @@
 
 #include <cuda.h>
 
+#include <mutex>
+
 #if defined(FEATURE_BLS12_381)
 # include <ff/bls12-381.hpp>
 #elif defined(FEATURE_BLS12_377)
@@ -79,6 +81,8 @@ class snarkvm_t {
 public:
     size_t max_lg_domain;
     size_t max_lg_blowup;
+
+    std::mutex lock_cache;
 
     struct resource_t {
         int dev;
@@ -221,6 +225,7 @@ public:
         }
 
         // Set up the MSM cache
+        lock_cache.lock();
         cur_msm_cache_entry = 0;
         msm_point_cache.resize(num_gpus);
         for (size_t i = 0; i < num_gpus; i++) {
@@ -228,6 +233,7 @@ public:
                 msm_point_cache[i].cache[j] = nullptr;
             }
         }
+        lock_cache.unlock();
         
         // For batch_eval_unnormalized_bivariate_lagrange_poly_with_diff_inputs_over_domain,
         // the pattern of subtractions depends the ratio of the domain sizes
