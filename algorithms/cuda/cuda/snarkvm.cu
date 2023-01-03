@@ -82,7 +82,7 @@ public:
     size_t max_lg_domain;
     size_t max_lg_blowup;
 
-    std::mutex lock_cache_x;
+    std::mutex lock_cache;
 
     struct resource_t {
         int dev;
@@ -161,6 +161,8 @@ public:
     std::vector<arith_cache_t> arith_cache;
 
     snarkvm_t() {
+
+        printf("### snarkvm_t constract func");
         max_lg_domain = 17;
         size_t domain_size = (size_t)1 << max_lg_domain;
         size_t ext_domain_size = domain_size;
@@ -1392,7 +1394,7 @@ extern "C" {
         try {
             err =snarkvm->MSM(out, points, npoints, bases_len, scalars, ffi_affine_size);
         } catch(exception &exc) {
-            printf("### c msm error %s ###\n",exc.what() ;
+            printf("### c msm error %s ###\n",exc.what()) ;
             if (!QUIET) {
                 cout << "Exception at " << __FILE__ << ":" << __LINE__ << endl;
             }
