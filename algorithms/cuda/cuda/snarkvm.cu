@@ -4,7 +4,7 @@
 
 #include <cuda.h>
 
-// #include <mutex>
+#include <mutex>
 
 #if defined(FEATURE_BLS12_381)
 # include <ff/bls12-381.hpp>
@@ -82,7 +82,7 @@ public:
     size_t max_lg_domain;
     size_t max_lg_blowup;
 
-//     std::mutex lock_cache;
+    std::mutex lock_cache_x;
 
     struct resource_t {
         int dev;
@@ -225,9 +225,9 @@ public:
         }
 
         // Set up the MSM cache
-//         printf("### lock 1 lock start\n");
-//         lock_cache.lock();
-//         printf("### lock 1 lock end\n");
+        printf("### lock 1 lock start\n");
+        lock_cache.lock();
+        printf("### lock 1 lock end\n");
         cur_msm_cache_entry = 0;
         msm_point_cache.resize(num_gpus);
         for (size_t i = 0; i < num_gpus; i++) {
@@ -235,9 +235,9 @@ public:
                 msm_point_cache[i].cache[j] = nullptr;
             }
         }
-//         printf("### lock 1 unlock start\n");
-//         lock_cache.unlock();
-//         printf("### lock 1 unlock end\n");
+        printf("### lock 1 unlock start\n");
+        lock_cache.unlock();
+        printf("### lock 1 unlock end\n");
         
         // For batch_eval_unnormalized_bivariate_lagrange_poly_with_diff_inputs_over_domain,
         // the pattern of subtractions depends the ratio of the domain sizes
@@ -270,15 +270,15 @@ public:
             delete h_mem[dev];
 
             // Free MSM caches
-//             printf("### lock 2 lock start\n");
-//              lock_cache.lock();
-//              printf("### lock 2 lock end\n");
+            printf("### lock 2 lock start\n");
+             lock_cache.lock();
+             printf("### lock 2 lock end\n");
             for (size_t i = 0; i < cur_msm_cache_entry; i++) {
                 delete msm_point_cache[dev].cache[i];
             }
-//              printf("### lock 2 unlock start\n");
-//            lock_cache.unlock();
-//            printf("### lock 2 unlock end\n");
+             printf("### lock 2 unlock start\n");
+           lock_cache.unlock();
+           printf("### lock 2 unlock end\n");
             //msm_cuda_delete_context(msm_cuda_ctx);
         }
     }
@@ -1032,9 +1032,9 @@ public:
             // Allocate the max cache size, though we might not use it all. This
             // simplifies precomputation on the GPU since they can all be the same
             // size and stride.
-//             printf("### lock 3 lock start\n");
-//             lock_cache.lock();
-//             printf("### lock 3 lock end\n");
+            printf("### lock 3 lock start\n");
+            lock_cache.lock();
+            printf("### lock 3 lock end\n");
             msm_point_cache[devt].cache[cur_msm_cache_entry] =
                 new dev_ptr_t<affine_noinf_t>(msm_cache_npoints * allWindows);
             fr_t* h_buf = *h_mem[devt];
@@ -1043,9 +1043,9 @@ public:
                                 (affine_noinf_t*)h_buf, // host buffer
                                 *msm_point_cache[devt].cache[cur_msm_cache_entry], // device buffer
                                 ffi_affine_sz);
-//             printf("### lock 3 unlock start\n");
-//              lock_cache.unlock();
-//              printf("### lock 3 unlock end\n");
+            printf("### lock 3 unlock start\n");
+             lock_cache.unlock();
+             printf("### lock 3 unlock end\n");
             // Ensure all transfers are complete. Could remove this if precomp used the right streams
             cudaDeviceSynchronize();
         }
@@ -1071,9 +1071,9 @@ public:
         int stream_idx = resource->stream;
         stream_t& stream = gpu[stream_idx];
 
-//         printf("### lock 4 lock start\n");
-//         lock_cache.lock();
-//         printf("### lock 4 lock end\n");
+        printf("### lock 4 lock start\n");
+        lock_cache.lock();
+        printf("### lock 4 lock end\n");
         // See if these bases are cached
         uint64_t key = ((uint64_t *)points)[0];
         dev_ptr_t<affine_noinf_t>* cached_points = nullptr;
@@ -1096,9 +1096,9 @@ public:
 	        printf("end init:::: cur_msm_cache_entry=%d msm_cache_entries=%d\n",cur_msm_cache_entry , msm_cache_entries);
         }
 
-//         printf("### lock 4 unlock start\n");
-//         lock_cache.unlock();
-//         printf("### lock 4 unlock end\n");
+        printf("### lock 4 unlock start\n");
+        lock_cache.unlock();
+        printf("### lock 4 unlock end\n");
 
 
 	    if (cached_points == nullptr) {
@@ -1392,7 +1392,7 @@ extern "C" {
         try {
             err =snarkvm->MSM(out, points, npoints, bases_len, scalars, ffi_affine_size);
         } catch(exception &exc) {
-            printf("### c msm error %s ###\n",exc.what() );
+            printf("### c msm error %s ###\n",exc.what() ;
             if (!QUIET) {
                 cout << "Exception at " << __FILE__ << ":" << __LINE__ << endl;
             }
