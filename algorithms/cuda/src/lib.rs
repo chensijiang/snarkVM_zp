@@ -489,6 +489,7 @@ pub fn msm<Affine, Projective, Scalar>(
                npoints, scalars.len())
     }
     let mut ret: Projective = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+    println!("### cuda_src_lib call msm start ");
     let err = unsafe {
         snarkvm_msm(
             &mut ret as *mut _ as *mut c_void,
@@ -499,6 +500,7 @@ pub fn msm<Affine, Projective, Scalar>(
             std::mem::size_of::<Affine>(),
         )
     };
+    println!("### cuda_src_lib call msm end ");
     if err.code != 0 {
         panic!("{}", String::from(err));
     }
