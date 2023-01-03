@@ -266,9 +266,11 @@ public:
             delete h_mem[dev];
 
             // Free MSM caches
+            lock_cache.lock();
             for (size_t i = 0; i < cur_msm_cache_entry; i++) {
                 delete msm_point_cache[dev].cache[i];
             }
+            lock_cache.unlock();
             //msm_cuda_delete_context(msm_cuda_ctx);
         }
     }
@@ -1021,7 +1023,8 @@ public:
 
             // Allocate the max cache size, though we might not use it all. This
             // simplifies precomputation on the GPU since they can all be the same
-            // size and stride. 
+            // size and stride.
+            lock_cache.lock();
             msm_point_cache[devt].cache[cur_msm_cache_entry] =
                 new dev_ptr_t<affine_noinf_t>(msm_cache_npoints * allWindows);
             fr_t* h_buf = *h_mem[devt];
@@ -1030,7 +1033,7 @@ public:
                                 (affine_noinf_t*)h_buf, // host buffer
                                 *msm_point_cache[devt].cache[cur_msm_cache_entry], // device buffer
                                 ffi_affine_sz);
-
+            lock_cache.unlock();
             // Ensure all transfers are complete. Could remove this if precomp used the right streams
             cudaDeviceSynchronize();
         }
@@ -1056,6 +1059,7 @@ public:
         int stream_idx = resource->stream;
         stream_t& stream = gpu[stream_idx];
 
+        lock_cache.lock();
         // See if these bases are cached
         uint64_t key = ((uint64_t *)points)[0];
         dev_ptr_t<affine_noinf_t>* cached_points = nullptr;
@@ -1069,15 +1073,22 @@ public:
         // Not MT safe - if we populate the cache from a single thread
         //       prior to going MT this will be ok.
         if (cached_points == nullptr && cur_msm_cache_entry < msm_cache_entries) {
-	    printf("start init:::: cur_msm_cache_entry=%d msm_cache_entries=%d\n",cur_msm_cache_entry , msm_cache_entries);    
+	       printf("start init:::: cur_msm_cache_entry=%d msm_cache_entries=%d\n",cur_msm_cache_entry , msm_cache_entries);
             MSMCacheBases(points, bases_len, ffi_affine_sz);
             // Re-select the target gpu
             select_gpu(dev);
             // And the points cached for the kernel
             cached_points = msm_point_cache[dev].cache[cur_msm_cache_entry - 1];
-	    printf("end init:::: cur_msm_cache_entry=%d msm_cache_entries=%d\n",cur_msm_cache_entry , msm_cache_entries);
+	        printf("end init:::: cur_msm_cache_entry=%d msm_cache_entries=%d\n",cur_msm_cache_entry , msm_cache_entries);
         }
-	if (cached_points == nullptr) {    printf("cur_msm_cache_entry=%d msm_cache_entries=%d\n",cur_msm_cache_entry , msm_cache_entries);      }
+
+        lock_cache.unlock();
+
+
+	    if (cached_points == nullptr) {
+	        printf("cur_msm_cache_entry=%d msm_cache_entries=%d\n",cur_msm_cache_entry , msm_cache_entries);
+	    }
+
         assert (cached_points != nullptr);
 
         fr_t* h_scalars = h_addr_msm(dev, stream_idx);
