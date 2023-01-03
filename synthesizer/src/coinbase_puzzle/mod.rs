@@ -272,7 +272,7 @@ impl<N: Network> CoinbasePuzzle<N> {
                         },
                         _=>{}
                     }
-                    info!("### pe_tx0 send ({})",now.elapsed().as_millis() );
+                    info!("### pe_tx0 send ({}ms)",now.elapsed().as_millis() );
                 }
             });
             pe_handles.push(handle);
@@ -315,8 +315,12 @@ impl<N: Network> CoinbasePuzzle<N> {
                     info!("### pe_rx recv begin len={}",pe_rx0.len() );
                     let now = std::time::Instant::now();
                     let product_evaluations0 = pe_rx0.recv().unwrap();
-                    info!("### pe_rx recv end ({}) len={}",now.elapsed().as_millis() ,pe_rx0.len());
+                    info!("### pe_rx recv end ({}ms) len={}",now.elapsed().as_millis() ,pe_rx0.len());
+
+                    info!("### call prove_ex_inner start");
+                    let now1 = std::time::Instant::now();
                     let _ = prove_ex_inner(&pk0, &polynomial0, &epoch_challenge0, &address0, nonce0, minimum_proof_target0, &product_evaluations0);
+                    info!("### call prove_ex_inner end  ({}ms)",now1.elapsed().as_millis());
                     // ret
                 }
             });
