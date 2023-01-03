@@ -1379,12 +1379,12 @@ extern "C" {
 
     RustError snarkvm_msm(point_t* out, const affine_t points[], size_t npoints, size_t bases_len,
                           const scalar_t scalars[], size_t ffi_affine_size) {
-        //printf("### c msm ###\n");
+        printf("### c msm ###\n");
         if (!alive()) {
             sleep(10); // Shutting down - delay while process exits
             return RustError{0};
         }
-       // printf("### c msm 1 ###\n");
+        printf("### c msm 1 ###\n");
         
 	// if (snarkvm == nullptr) {printf("### snarkvm null \n");}  else {printf("### snarkvm not null \n");}
 
@@ -1392,7 +1392,7 @@ extern "C" {
         try {
             err =snarkvm->MSM(out, points, npoints, bases_len, scalars, ffi_affine_size);
         } catch(exception &exc) {
-           //  printf("### c msm exc ###\n");
+            printf("### c msm error %s ###\n",exc.what();
             if (!QUIET) {
                 cout << "Exception at " << __FILE__ << ":" << __LINE__ << endl;
             }
