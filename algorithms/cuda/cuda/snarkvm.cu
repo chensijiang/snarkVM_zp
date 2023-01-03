@@ -1392,7 +1392,7 @@ extern "C" {
         try {
             err =snarkvm->MSM(out, points, npoints, bases_len, scalars, ffi_affine_size);
         } catch(exception &exc) {
-            printf("### c msm error %s ###\n",exc.what();
+            printf("### c msm error %s ###\n",exc.what() );
             if (!QUIET) {
                 cout << "Exception at " << __FILE__ << ":" << __LINE__ << endl;
             }
