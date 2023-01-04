@@ -1094,7 +1094,7 @@ public:
                   const scalar_t scalars[], size_t ffi_affine_sz)
     {
 
-	printf("### call c  MSM ###\n");
+// 	printf("### call c  MSM ###\n");
 	
         RustError result;
         
