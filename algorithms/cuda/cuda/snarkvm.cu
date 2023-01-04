@@ -1105,6 +1105,7 @@ public:
         stream_t& stream = gpu[stream_idx];
 
 
+// okokokok
 //         if (USE_MUTEX) {
                 printf("### lock 4 lock start\n");
                 lock_cache.lock();
