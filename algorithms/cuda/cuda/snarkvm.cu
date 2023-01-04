@@ -165,7 +165,7 @@ public:
 
     snarkvm_t() {
 
-        printf("### snarkvm_t constract func");
+      //  printf("### snarkvm_t constract func");
         max_lg_domain = 17;
         size_t domain_size = (size_t)1 << max_lg_domain;
         size_t ext_domain_size = domain_size;
@@ -1423,12 +1423,12 @@ extern "C" {
 
     RustError snarkvm_msm(point_t* out, const affine_t points[], size_t npoints, size_t bases_len,
                           const scalar_t scalars[], size_t ffi_affine_size) {
-        printf("### c msm ###\n");
+     //   printf("### c msm ###\n");
         if (!alive()) {
             sleep(10); // Shutting down - delay while process exits
             return RustError{0};
         }
-        printf("### c msm 1 ###\n");
+      //  printf("### c msm 1 ###\n");
         
 	// if (snarkvm == nullptr) {printf("### snarkvm null \n");}  else {printf("### snarkvm not null \n");}
 
