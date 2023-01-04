@@ -1107,9 +1107,9 @@ public:
 
 // okokokok
 //         if (USE_MUTEX) {
-                printf("### lock 4 lock start\n");
+//                 printf("### lock 4 lock start\n");
                 lock_cache.lock();
-                printf("### lock 4 lock end\n");
+//                 printf("### lock 4 lock end\n");
 //         }
 
 
@@ -1137,9 +1137,9 @@ public:
         }
 
 //         if (USE_MUTEX) {
-                printf("### lock 4 unlock start\n");
+//                 printf("### lock 4 unlock start\n");
                 lock_cache.unlock();
-                printf("### lock 4 unlock end\n");
+//                 printf("### lock 4 unlock end\n");
 //         }
 
 
