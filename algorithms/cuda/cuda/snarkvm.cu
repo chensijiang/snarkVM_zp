@@ -1105,11 +1105,11 @@ public:
         stream_t& stream = gpu[stream_idx];
 
 
-        if (USE_MUTEX) {
+//         if (USE_MUTEX) {
                 printf("### lock 4 lock start\n");
                 lock_cache.lock();
                 printf("### lock 4 lock end\n");
-        }
+//         }
 
 
 
@@ -1135,11 +1135,11 @@ public:
 	        printf("end init:::: cur_msm_cache_entry=%d msm_cache_entries=%d\n",cur_msm_cache_entry , msm_cache_entries);
         }
 
-        if (USE_MUTEX) {
+//         if (USE_MUTEX) {
                 printf("### lock 4 unlock start\n");
                 lock_cache.unlock();
                 printf("### lock 4 unlock end\n");
-        }
+//         }
 
 
 
