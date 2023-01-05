@@ -249,7 +249,7 @@ impl<N: Network> CoinbasePuzzle<N> {
 
             let product_evaluations = pk.product_domain.mul_polynomials_in_evaluation_domain(
                 &polynomial_evaluations,
-                &epoch_challenge0.epoch_polynomial_evaluations().evaluations,
+                &epoch_challenge.epoch_polynomial_evaluations().evaluations,
             );
 
             product_evaluations
@@ -310,15 +310,15 @@ impl<N: Network> CoinbasePuzzle<N> {
             // };
 
             // let product_evaluations0 = product_evaluations.clone();
-            let pe_rx0 = pe_rx.clone();
+            // let pe_rx0 = pe_rx.clone();
             let handle = std::thread::spawn(move || {
 
                 loop {
-                    info!("### pe_rx recv begin len={}",pe_rx0.len() );
-                    let now = std::time::Instant::now();
+                    // info!("### pe_rx recv begin len={}",pe_rx0.len() );
+                    // let now = std::time::Instant::now();
                     // let product_evaluations0 = pe_rx0.recv().unwrap();
 
-                    info!("### pe_rx recv end ({}ms) len={}",now.elapsed().as_millis() ,pe_rx0.len());
+                    // info!("### pe_rx recv end ({}ms) len={}",now.elapsed().as_millis() ,pe_rx0.len());
 
                     info!("### call prove_ex_inner start");
                     let now1 = std::time::Instant::now();
