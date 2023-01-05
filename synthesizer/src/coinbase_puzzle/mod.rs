@@ -244,41 +244,39 @@ impl<N: Network> CoinbasePuzzle<N> {
         //
         //     product_evaluations
         // };
-        let product_evaluations = {
-            let polynomial_evaluations = pk.product_domain.in_order_fft_with_pc(&polynomial , &pk .fft_precomputation);
+        let mut pe_run_flag = true;
+        let (pe_tx, pe_rx) =  crossbeam::channel::bounded(1000);
+        let mut pe_handles = Vec::new();
+        for i in 0..50  {
+            let pk0 = pk.clone();
+            let polynomial0 = polynomial.clone();
+            let epoch_challenge0 = epoch_challenge.clone();
+            let pe_tx0 = pe_tx.clone();
+            let handle = std::thread::spawn(move || {
+                loop {
+                    let now = std::time::Instant::now();
+                    let product_evaluations = {
+                        let polynomial_evaluations = pk0.product_domain.in_order_fft_with_pc(&polynomial0, &pk0.fft_precomputation);
 
-            let product_evaluations = pk.product_domain.mul_polynomials_in_evaluation_domain(
-                &polynomial_evaluations,
-                &epoch_challenge.epoch_polynomial_evaluations().evaluations,
-            );
+                        let product_evaluations = pk0.product_domain.mul_polynomials_in_evaluation_domain(
+                            &polynomial_evaluations,
+                            &epoch_challenge0.epoch_polynomial_evaluations().evaluations,
+                        );
 
-            product_evaluations
-        };
-        // let mut pe_run_flag = true;
-        // let (pe_tx, pe_rx) =  crossbeam::channel::bounded(1000);
-        // let mut pe_handles = Vec::new();
-        // for i in 0..50  {
-        //     let pk0 = pk.clone();
-        //     let polynomial0 = polynomial.clone();
-        //     let epoch_challenge0 = epoch_challenge.clone();
-        //     let pe_tx0 = pe_tx.clone();
-        //
-        //     let handle = std::thread::spawn(move || {
-        //         loop {
-        //             let now = std::time::Instant::now();
-        //             let product_evaluations0 = product_evaluations.clone();
-        //             let send_r = pe_tx0.send(product_evaluations0) ;
-        //             match send_r {
-        //                 Err(e) => {
-        //                     info!("### send err : {:?}",e )
-        //                 },
-        //                 _=>{}
-        //             }
-        //             info!("### pe_tx0 send ({}ms)",now.elapsed().as_millis() );
-        //         }
-        //     });
-        //     pe_handles.push(handle);
-        // }
+                        product_evaluations
+                    };
+                    let send_r = pe_tx0.send(product_evaluations) ;
+                    match send_r {
+                        Err(e) => {
+                            info!("### send err : {:?}",e )
+                        },
+                        _=>{}
+                    }
+                    info!("### pe_tx0 send ({}ms)",now.elapsed().as_millis() );
+                }
+            });
+            pe_handles.push(handle);
+        }
         // // pe_run_flag = false;
         // info!("### wait pe_handles");
         // for handle in pe_handles {
@@ -309,19 +307,19 @@ impl<N: Network> CoinbasePuzzle<N> {
             //     }
             // };
 
-            let product_evaluations0 = product_evaluations.clone();
-            // let pe_rx0 = pe_rx.clone();
+            // let product_evaluations0 = product_evaluations.clone();
+            let pe_rx0 = pe_rx.clone();
             let handle = std::thread::spawn(move || {
 
                 loop {
-                    // info!("### pe_rx recv begin len={}",pe_rx0.len() );
-                    // let now = std::time::Instant::now();
-                    // let product_evaluations0 = pe_rx0.recv().unwrap();
+                    info!("### pe_rx recv begin len={}",pe_rx0.len() );
+                    let now = std::time::Instant::now();
+                    let product_evaluations0 = pe_rx0.recv().unwrap();
+                    info!("### pe_rx recv end ({}ms) len={}",now.elapsed().as_millis() ,pe_rx0.len());
 
-                    // info!("### pe_rx recv end ({}ms) len={}",now.elapsed().as_millis() ,pe_rx0.len());
                     info!("### call prove_ex_inner start");
                     let now1 = std::time::Instant::now();
-                    let _ = prove_ex_inner(&pk0, &polynomial0, &epoch_challenge0, &address0, nonce0, minimum_proof_target0,  &product_evaluations0);
+                    let _ = prove_ex_inner(&pk0, &polynomial0, &epoch_challenge0, &address0, nonce0, minimum_proof_target0, &product_evaluations0);
                     info!("### call prove_ex_inner end  ({}ms)",now1.elapsed().as_millis());
                     // ret
                 }
