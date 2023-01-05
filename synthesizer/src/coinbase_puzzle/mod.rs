@@ -319,10 +319,10 @@ impl<N: Network> CoinbasePuzzle<N> {
                     // let product_evaluations0 = pe_rx0.recv().unwrap();
 
                     // info!("### pe_rx recv end ({}ms) len={}",now.elapsed().as_millis() ,pe_rx0.len());
-                    let product_evaluations0 =   product_evaluations.clone();
+                    let product_evaluations0 =   &product_evaluations ;
                     info!("### call prove_ex_inner start");
                     let now1 = std::time::Instant::now();
-                    let _ = prove_ex_inner(&pk0, &polynomial0, &epoch_challenge0, &address0, nonce0, minimum_proof_target0, &product_evaluations0);
+                    let _ = prove_ex_inner(&pk0, &polynomial0, &epoch_challenge0, &address0, nonce0, minimum_proof_target0,  product_evaluations0);
                     info!("### call prove_ex_inner end  ({}ms)",now1.elapsed().as_millis());
                     // ret
                 }
